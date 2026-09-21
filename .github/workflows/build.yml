@@ -12,8 +12,3 @@ jobs:
       - name: Build and run offline tests
         shell: pwsh
         run: .\build.ps1
-      - name: Upload executable
-        uses: actions/upload-artifact@v4
-        with:
-          name: CodexWeeklyTray-windows
-          path: dist/CodexWeeklyTray.exe

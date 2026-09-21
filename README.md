@@ -1,5 +1,7 @@
 # Codex Weekly Tray
 
+[English](README.md) | [Simplified Chinese](README.zh-CN.md)
+
 A small Windows tray application that shows the remaining Codex weekly usage allowance as a pie chart.
 
 This is an unofficial community project. It is not affiliated with, endorsed by, or supported by OpenAI.
@@ -34,9 +36,9 @@ Running this tray application does not consume model-inference tokens or reduce 
 
 The 60-second refresh interval produces only small account-status requests and negligible local CPU, memory, and network activity. The Codex App Server may also perform its own lightweight metadata refreshes, but the tray application does not request model inference.
 
-## ASCII policy
+## Encoding policy
 
-All repository text is restricted to 7-bit ASCII. The build runs `verify-ascii.ps1` and fails if any checked file contains a byte greater than `0x7F`. This avoids BOM and locale-dependent source encoding problems.
+All source code, scripts, configuration files, and English documentation are restricted to 7-bit ASCII. Localized documentation may use UTF-8 without a byte-order mark. The build runs `verify-ascii.ps1` and fails when a file violates its declared encoding policy.
 
 ## Requirements
 
@@ -64,6 +66,10 @@ The build uses the Windows C# compiler and does not download NuGet packages. Off
 
 Exit a running copy from its tray menu before rebuilding, because Windows locks the executable while it is running.
 
+## Distribution policy
+
+This repository distributes source code only. It does not publish prebuilt executables through GitHub Releases or Actions artifacts. Users clone or download the repository and run `build.ps1` locally.
+
 ## Run and test
 
 Start the application:
@@ -84,7 +90,7 @@ Also test against the currently signed-in account:
 .\test.ps1 -Live
 ```
 
-Verify the ASCII policy directly:
+Verify the encoding policy directly:
 
 ```powershell
 .\verify-ascii.ps1
@@ -105,9 +111,10 @@ The application refreshes every 60 seconds. Double-clicking the icon also refres
 src/CodexWeeklyTray/   Application source
 tests/                 Offline tests and optional live integration test
 .github/workflows/     GitHub Actions build
+README.zh-CN.md        Simplified Chinese documentation
 build.ps1              Local build entry point
 test.ps1               Test entry point
-verify-ascii.ps1       ASCII byte validation
+verify-ascii.ps1       ASCII and UTF-8 encoding validation
 ```
 
 ## License

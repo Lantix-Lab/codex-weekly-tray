@@ -52,10 +52,27 @@ namespace CodexWeeklyTray.Tests
 
             JavaScriptSerializer serializer = new JavaScriptSerializer();
             IDictionary<string, object> sample = serializer.DeserializeObject(sampleJson) as IDictionary<string, object>;
-            UsageSnapshot snapshot = UsageParser.Parse(sample);
+            UsageWindowSet windows = UsageParser.Parse(sample);
+            UsageSnapshot snapshot = windows.Weekly;
 
-            AssertEqual(10080, snapshot.WindowDurationMinutes, "selects the weekly window");
+            AssertTrue(windows.FiveHour != null, "finds the 5-hour window");
+            AssertTrue(windows.Weekly != null, "finds the weekly window");
+            AssertEqual(300, windows.FiveHour.WindowDurationMinutes, "keeps the 5-hour duration");
+            AssertEqual(20.0, windows.FiveHour.RemainingPercent, "calculates 5-hour remaining percent");
+            AssertEqual(10080, snapshot.WindowDurationMinutes, "keeps the weekly duration");
             AssertEqual(76.0, snapshot.RemainingPercent, "calculates remaining percent");
+
+            const string fiveHourOnlyJson = @"{
+                ""rateLimits"": {
+                    ""primary"": { ""usedPercent"": 65, ""windowDurationMins"": 300, ""resetsAt"": 1700000000 }
+                }
+            }";
+            IDictionary<string, object> fiveHourOnly = serializer.DeserializeObject(fiveHourOnlyJson) as IDictionary<string, object>;
+            UsageWindowSet fiveHourOnlyWindows = UsageParser.Parse(fiveHourOnly);
+            AssertTrue(fiveHourOnlyWindows.FiveHour != null, "supports a 5-hour-only account");
+            AssertTrue(fiveHourOnlyWindows.Weekly == null, "does not invent a weekly window");
+            AssertEqual(35.0, fiveHourOnlyWindows.FiveHour.RemainingPercent, "calculates 5-hour-only remaining percent");
+
             UsageSnapshot full = new UsageSnapshot(0.0, 10080, 0);
             AssertEqual(100.0, full.RemainingPercent, "keeps the true 100 percent value");
 
@@ -88,16 +105,25 @@ namespace CodexWeeklyTray.Tests
         {
             using (CodexAppServerClient client = new CodexAppServerClient(Console.WriteLine))
             {
-                UsageSnapshot snapshot = await client.FetchWeeklyUsageAsync();
-                Console.WriteLine(
-                    "LIVE_OK remaining=" + snapshot.RemainingPercent.ToString("0.##") +
-                    " window=" + snapshot.WindowDurationMinutes);
-                AssertEqual(10080, snapshot.WindowDurationMinutes, "live response contains a weekly window");
+                UsageWindowSet windows = await client.FetchUsageAsync();
+                WriteLiveWindows("LIVE_OK", windows);
+                AssertTrue(windows.HasAny, "live response contains a supported window");
 
-                UsageSnapshot refreshed = await client.FetchWeeklyUsageAsync();
-                Console.WriteLine(
-                    "LIVE_REFRESH_OK remaining=" + refreshed.RemainingPercent.ToString("0.##"));
-                AssertEqual(10080, refreshed.WindowDurationMinutes, "persistent connection supports refresh");
+                UsageWindowSet refreshed = await client.FetchUsageAsync();
+                WriteLiveWindows("LIVE_REFRESH_OK", refreshed);
+                AssertTrue(refreshed.HasAny, "persistent connection supports refresh");
+            }
+        }
+
+        private static void WriteLiveWindows(string prefix, UsageWindowSet windows)
+        {
+            if (windows.FiveHour != null)
+            {
+                Console.WriteLine(prefix + " 5-hour remaining=" + windows.FiveHour.RemainingPercent.ToString("0.##"));
+            }
+            if (windows.Weekly != null)
+            {
+                Console.WriteLine(prefix + " weekly remaining=" + windows.Weekly.RemainingPercent.ToString("0.##"));
             }
         }
 

@@ -25,7 +25,7 @@ namespace CodexWeeklyTray
             log = logAction ?? delegate { };
         }
 
-        public async Task<UsageSnapshot> FetchWeeklyUsageAsync()
+        public async Task<UsageWindowSet> FetchUsageAsync()
         {
             await requestLock.WaitAsync().ConfigureAwait(false);
             try

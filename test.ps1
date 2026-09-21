@@ -31,6 +31,7 @@ $testOutput = Join-Path $objectRoot 'CodexWeeklyTray.Tests.exe'
 $testSources = @(
     (Join-Path $projectRoot 'tests\SmokeTests.cs'),
     (Join-Path $sourceRoot 'UsageSnapshot.cs'),
+    (Join-Path $sourceRoot 'UsageWindowSet.cs'),
     (Join-Path $sourceRoot 'UsageParser.cs'),
     (Join-Path $sourceRoot 'TrayIconRenderer.cs'),
     (Join-Path $sourceRoot 'CodexLocator.cs'),

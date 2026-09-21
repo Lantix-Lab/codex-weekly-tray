@@ -6,9 +6,10 @@ namespace CodexWeeklyTray
 {
     internal static class UsageParser
     {
+        private const int FiveHourWindowMinutes = 5 * 60;
         private const int WeeklyWindowMinutes = 7 * 24 * 60;
 
-        public static UsageSnapshot Parse(IDictionary<string, object> result)
+        public static UsageWindowSet Parse(IDictionary<string, object> result)
         {
             if (result == null)
             {
@@ -34,34 +35,37 @@ namespace CodexWeeklyTray
                 throw new InvalidOperationException("The account has no readable Codex rate-limit window.");
             }
 
-            IDictionary<string, object> selected = null;
-            int selectedDuration = -1;
+            UsageSnapshot fiveHour = null;
+            UsageSnapshot weekly = null;
             int index;
             for (index = 0; index < windows.Count; index++)
             {
                 int duration = ToInt(GetValue(windows[index], "windowDurationMins"));
-                if (duration == WeeklyWindowMinutes)
+                if (duration != FiveHourWindowMinutes && duration != WeeklyWindowMinutes)
                 {
-                    selected = windows[index];
-                    selectedDuration = duration;
-                    break;
+                    continue;
                 }
 
-                if (duration > selectedDuration)
+                double usedPercent = ToDouble(GetValue(windows[index], "usedPercent"));
+                long resetsAt = ToLong(GetValue(windows[index], "resetsAt"));
+                UsageSnapshot snapshot = new UsageSnapshot(usedPercent, duration, resetsAt);
+                if (duration == FiveHourWindowMinutes)
                 {
-                    selected = windows[index];
-                    selectedDuration = duration;
+                    fiveHour = snapshot;
+                }
+                else
+                {
+                    weekly = snapshot;
                 }
             }
 
-            if (selected == null || selectedDuration <= 0)
+            UsageWindowSet windowSet = new UsageWindowSet(fiveHour, weekly);
+            if (!windowSet.HasAny)
             {
-                throw new InvalidOperationException("The rate-limit response has no valid window duration.");
+                throw new InvalidOperationException("The rate-limit response has no supported 5-hour or weekly window.");
             }
 
-            double usedPercent = ToDouble(GetValue(selected, "usedPercent"));
-            long resetsAt = ToLong(GetValue(selected, "resetsAt"));
-            return new UsageSnapshot(usedPercent, selectedDuration, resetsAt);
+            return windowSet;
         }
 
         private static void AddWindows(IDictionary<string, object> bucket, IList<IDictionary<string, object>> windows)

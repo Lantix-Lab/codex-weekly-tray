@@ -10,22 +10,30 @@ namespace CodexWeeklyTray
     internal sealed class TrayApplicationContext : ApplicationContext, IDisposable
     {
         private const string UsagePageUrl = "https://chatgpt.com/codex/settings/usage";
-        private readonly NotifyIcon notifyIcon;
-        private readonly ToolStripMenuItem statusItem;
+        private readonly NotifyIcon weeklyNotifyIcon;
+        private readonly NotifyIcon fiveHourNotifyIcon;
+        private readonly ToolStripMenuItem weeklyStatusItem;
+        private readonly ToolStripMenuItem fiveHourStatusItem;
         private readonly ToolStripMenuItem refreshItem;
         private readonly ToolStripMenuItem startupItem;
         private readonly Timer refreshTimer;
         private readonly CodexAppServerClient client;
-        private Icon currentIcon;
+        private Icon weeklyCurrentIcon;
+        private Icon fiveHourCurrentIcon;
         private bool refreshing;
         private bool disposed;
 
         public TrayApplicationContext()
         {
             client = new CodexAppServerClient(AppLog.Write);
-            currentIcon = TrayIconRenderer.RenderUnavailable();
+            weeklyCurrentIcon = TrayIconRenderer.RenderUnavailable();
 
-            statusItem = new ToolStripMenuItem("Codex weekly remaining: --") { Enabled = false };
+            weeklyStatusItem = new ToolStripMenuItem("Codex weekly remaining: --") { Enabled = false };
+            fiveHourStatusItem = new ToolStripMenuItem("Codex 5-hour remaining: --")
+            {
+                Enabled = false,
+                Visible = false
+            };
             refreshItem = new ToolStripMenuItem("Refresh now");
             refreshItem.Click += delegate { BeginRefresh(); };
 
@@ -43,7 +51,8 @@ namespace CodexWeeklyTray
             exitItem.Click += delegate { ExitThread(); };
 
             ContextMenuStrip menu = new ContextMenuStrip();
-            menu.Items.Add(statusItem);
+            menu.Items.Add(weeklyStatusItem);
+            menu.Items.Add(fiveHourStatusItem);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(refreshItem);
             menu.Items.Add(usagePageItem);
@@ -51,14 +60,22 @@ namespace CodexWeeklyTray
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(exitItem);
 
-            notifyIcon = new NotifyIcon
+            weeklyNotifyIcon = new NotifyIcon
             {
-                Icon = currentIcon,
+                Icon = weeklyCurrentIcon,
                 Text = "Codex weekly limit: loading...",
                 ContextMenuStrip = menu,
                 Visible = true
             };
-            notifyIcon.DoubleClick += delegate { BeginRefresh(); };
+            weeklyNotifyIcon.DoubleClick += delegate { BeginRefresh(); };
+
+            fiveHourNotifyIcon = new NotifyIcon
+            {
+                Text = "Codex 5-hour limit: loading...",
+                ContextMenuStrip = menu,
+                Visible = false
+            };
+            fiveHourNotifyIcon.DoubleClick += delegate { BeginRefresh(); };
 
             refreshTimer = new Timer { Interval = 250 };
             refreshTimer.Tick += delegate
@@ -82,8 +99,8 @@ namespace CodexWeeklyTray
             refreshItem.Enabled = false;
             try
             {
-                UsageSnapshot snapshot = await client.FetchWeeklyUsageAsync();
-                UpdateFromSnapshot(snapshot);
+                UsageWindowSet windowSet = await client.FetchUsageAsync();
+                UpdateFromWindows(windowSet);
             }
             catch (Exception exception)
             {
@@ -97,31 +114,76 @@ namespace CodexWeeklyTray
             }
         }
 
-        private void UpdateFromSnapshot(UsageSnapshot snapshot)
+        private void UpdateFromWindows(UsageWindowSet windowSet)
         {
-            Icon icon = TrayIconRenderer.Render(snapshot);
-            ReplaceIcon(icon);
+            UpdateWindow(
+                windowSet.Weekly,
+                weeklyNotifyIcon,
+                weeklyStatusItem,
+                "Codex weekly remaining: ",
+                ref weeklyCurrentIcon);
+            UpdateWindow(
+                windowSet.FiveHour,
+                fiveHourNotifyIcon,
+                fiveHourStatusItem,
+                "Codex 5-hour remaining: ",
+                ref fiveHourCurrentIcon);
+        }
+
+        private static void UpdateWindow(
+            UsageSnapshot snapshot,
+            NotifyIcon notifyIcon,
+            ToolStripMenuItem statusItem,
+            string label,
+            ref Icon currentIcon)
+        {
+            if (snapshot == null)
+            {
+                notifyIcon.Visible = false;
+                statusItem.Visible = false;
+                return;
+            }
+
+            ReplaceIcon(notifyIcon, TrayIconRenderer.Render(snapshot), ref currentIcon);
+            notifyIcon.Visible = true;
+            statusItem.Visible = true;
 
             string actualRemaining = Math.Round(snapshot.RemainingPercent, 0, MidpointRounding.AwayFromZero)
                 .ToString("0", CultureInfo.InvariantCulture);
-            statusItem.Text = "Codex weekly remaining: " + actualRemaining + "%";
+            statusItem.Text = label + actualRemaining + "%";
 
-            string tooltip = "Codex weekly remaining: " + actualRemaining + "%";
+            string tooltip = label + actualRemaining + "%";
             if (snapshot.ResetTimeLocal != DateTime.MinValue)
             {
                 tooltip += " | Reset " + snapshot.ResetTimeLocal.ToString("MM-dd HH:mm");
             }
-            SetTooltip(tooltip);
+            SetTooltip(notifyIcon, tooltip);
         }
 
         private void UpdateUnavailable(string message)
         {
-            ReplaceIcon(TrayIconRenderer.RenderUnavailable());
-            statusItem.Text = "Codex weekly remaining: --";
-            SetTooltip("Codex rate-limit read failed: " + message);
+            if (!weeklyNotifyIcon.Visible && !fiveHourNotifyIcon.Visible)
+            {
+                weeklyNotifyIcon.Visible = true;
+                weeklyStatusItem.Visible = true;
+            }
+
+            if (weeklyNotifyIcon.Visible)
+            {
+                ReplaceIcon(weeklyNotifyIcon, TrayIconRenderer.RenderUnavailable(), ref weeklyCurrentIcon);
+                weeklyStatusItem.Text = "Codex weekly remaining: --";
+                SetTooltip(weeklyNotifyIcon, "Codex rate-limit read failed: " + message);
+            }
+
+            if (fiveHourNotifyIcon.Visible)
+            {
+                ReplaceIcon(fiveHourNotifyIcon, TrayIconRenderer.RenderUnavailable(), ref fiveHourCurrentIcon);
+                fiveHourStatusItem.Text = "Codex 5-hour remaining: --";
+                SetTooltip(fiveHourNotifyIcon, "Codex rate-limit read failed: " + message);
+            }
         }
 
-        private void ReplaceIcon(Icon icon)
+        private static void ReplaceIcon(NotifyIcon notifyIcon, Icon icon, ref Icon currentIcon)
         {
             Icon previous = currentIcon;
             currentIcon = icon;
@@ -132,7 +194,7 @@ namespace CodexWeeklyTray
             }
         }
 
-        private void SetTooltip(string text)
+        private static void SetTooltip(NotifyIcon notifyIcon, string text)
         {
             if (text.Length > 63)
             {
@@ -201,12 +263,19 @@ namespace CodexWeeklyTray
             disposed = true;
             refreshTimer.Stop();
             refreshTimer.Dispose();
-            notifyIcon.Visible = false;
-            notifyIcon.Dispose();
-            if (currentIcon != null)
+            weeklyNotifyIcon.Visible = false;
+            fiveHourNotifyIcon.Visible = false;
+            weeklyNotifyIcon.Dispose();
+            fiveHourNotifyIcon.Dispose();
+            if (weeklyCurrentIcon != null)
             {
-                currentIcon.Dispose();
-                currentIcon = null;
+                weeklyCurrentIcon.Dispose();
+                weeklyCurrentIcon = null;
+            }
+            if (fiveHourCurrentIcon != null)
+            {
+                fiveHourCurrentIcon.Dispose();
+                fiveHourCurrentIcon = null;
             }
             client.Dispose();
             base.Dispose();

@@ -2,12 +2,15 @@
 
 [English](README.md) | [Simplified Chinese](README.zh-CN.md)
 
-A small Windows tray application that shows the remaining Codex weekly usage allowance as a pie chart.
+A small Windows tray application that shows the remaining Codex weekly and 5-hour usage allowances as pie charts.
 
 This is an unofficial community project. It is not affiliated with, endorsed by, or supported by OpenAI.
 
 ## Icon behavior
 
+- Each available limit window has its own tray icon in the same application.
+- The weekly window uses one icon. A second icon appears when a 5-hour window is returned.
+- Seeing only one icon is expected when the account returns only one supported window.
 - The colored area is the remaining percentage.
 - Usage removes the colored area clockwise, starting at 12 o'clock.
 - More than 50 percent remaining is green.
@@ -17,7 +20,16 @@ This is an unofficial community project. It is not affiliated with, endorsed by,
 - An unavailable state is shown as a gray circle with a diagonal line.
 - The icon contains no text or digits.
 
-The menu and tooltip still show the exact percentage and reset time.
+Each icon's tooltip identifies its window and shows the exact percentage and reset time. Both icons share one menu, refresh timer, App Server connection, and application process. A refresh makes one `account/rateLimits/read` request and updates every returned window; displaying two icons does not double the request rate.
+
+## Supported windows
+
+- A 300-minute window is displayed as the 5-hour icon.
+- A 10,080-minute window is displayed as the weekly icon.
+- If both windows are returned, both icons are visible.
+- If only one supported window is returned, only its icon is visible.
+
+Window types are detected from `windowDurationMins`, not inferred from the account plan name.
 
 ## Data source and privacy
 
@@ -32,7 +44,7 @@ See the [OpenAI Codex App Server documentation](https://learn.chatgpt.com/docs/a
 
 ## Usage impact
 
-Running this tray application does not consume model-inference tokens or reduce the Codex weekly usage allowance. It only calls `account/rateLimits/read` to retrieve account metadata. It never starts a Codex thread or model turn and does not call `thread/start` or `turn/start`.
+Running this tray application does not consume model-inference tokens or reduce either Codex usage allowance. It only calls `account/rateLimits/read` to retrieve account metadata. It never starts a Codex thread or model turn and does not call `thread/start` or `turn/start`.
 
 The 60-second refresh interval produces only small account-status requests and negligible local CPU, memory, and network activity. The Codex App Server may also perform its own lightweight metadata refreshes, but the tray application does not request model inference.
 
@@ -103,7 +115,7 @@ Verify the encoding policy directly:
 - **Start with Windows** adds or removes the current-user startup entry. It is disabled by default.
 - **Exit** closes the application and its App Server child process.
 
-The application refreshes every 60 seconds. Double-clicking the icon also refreshes it.
+The application refreshes every 60 seconds. Double-clicking either icon also refreshes both icons.
 
 ## Project layout
 

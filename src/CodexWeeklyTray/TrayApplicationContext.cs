@@ -26,7 +26,7 @@ namespace CodexWeeklyTray
         public TrayApplicationContext()
         {
             client = new CodexAppServerClient(AppLog.Write);
-            weeklyCurrentIcon = TrayIconRenderer.RenderUnavailable();
+            weeklyCurrentIcon = TrayIconRenderer.RenderWeeklyUnavailable();
 
             weeklyStatusItem = new ToolStripMenuItem("Codex weekly remaining: --") { Enabled = false };
             fiveHourStatusItem = new ToolStripMenuItem("Codex 5-hour remaining: --")
@@ -121,12 +121,14 @@ namespace CodexWeeklyTray
                 weeklyNotifyIcon,
                 weeklyStatusItem,
                 "Codex weekly remaining: ",
+                false,
                 ref weeklyCurrentIcon);
             UpdateWindow(
                 windowSet.FiveHour,
                 fiveHourNotifyIcon,
                 fiveHourStatusItem,
                 "Codex 5-hour remaining: ",
+                true,
                 ref fiveHourCurrentIcon);
         }
 
@@ -135,6 +137,7 @@ namespace CodexWeeklyTray
             NotifyIcon notifyIcon,
             ToolStripMenuItem statusItem,
             string label,
+            bool fiveHour,
             ref Icon currentIcon)
         {
             if (snapshot == null)
@@ -144,7 +147,10 @@ namespace CodexWeeklyTray
                 return;
             }
 
-            ReplaceIcon(notifyIcon, TrayIconRenderer.Render(snapshot), ref currentIcon);
+            Icon icon = fiveHour
+                ? TrayIconRenderer.RenderFiveHour(snapshot)
+                : TrayIconRenderer.RenderWeekly(snapshot);
+            ReplaceIcon(notifyIcon, icon, ref currentIcon);
             notifyIcon.Visible = true;
             statusItem.Visible = true;
 
@@ -170,14 +176,14 @@ namespace CodexWeeklyTray
 
             if (weeklyNotifyIcon.Visible)
             {
-                ReplaceIcon(weeklyNotifyIcon, TrayIconRenderer.RenderUnavailable(), ref weeklyCurrentIcon);
+                ReplaceIcon(weeklyNotifyIcon, TrayIconRenderer.RenderWeeklyUnavailable(), ref weeklyCurrentIcon);
                 weeklyStatusItem.Text = "Codex weekly remaining: --";
                 SetTooltip(weeklyNotifyIcon, "Codex rate-limit read failed: " + message);
             }
 
             if (fiveHourNotifyIcon.Visible)
             {
-                ReplaceIcon(fiveHourNotifyIcon, TrayIconRenderer.RenderUnavailable(), ref fiveHourCurrentIcon);
+                ReplaceIcon(fiveHourNotifyIcon, TrayIconRenderer.RenderFiveHourUnavailable(), ref fiveHourCurrentIcon);
                 fiveHourStatusItem.Text = "Codex 5-hour remaining: --";
                 SetTooltip(fiveHourNotifyIcon, "Codex rate-limit read failed: " + message);
             }

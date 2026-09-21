@@ -79,13 +79,18 @@ namespace CodexWeeklyTray.Tests
             UsageSnapshot empty = new UsageSnapshot(100.0, 10080, 0);
             AssertEqual(0.0, empty.RemainingPercent, "keeps the true zero percent value");
 
-            using (Icon icon = TrayIconRenderer.Render(snapshot))
+            Color weeklyBorder;
+            using (Icon icon = TrayIconRenderer.RenderWeekly(snapshot))
             {
                 AssertEqual(64, icon.Width, "creates a Windows icon");
                 using (Bitmap bitmap = icon.ToBitmap())
                 {
+                    weeklyBorder = bitmap.GetPixel(32, 6);
                     Color removedClockwise = bitmap.GetPixel(45, 19);
                     Color remainingAfterCut = bitmap.GetPixel(45, 45);
+                    AssertTrue(
+                        weeklyBorder.B > weeklyBorder.R + 100,
+                        "uses a blue weekly outline");
                     AssertTrue(
                         Math.Abs(removedClockwise.R - removedClockwise.G) < 20,
                         "removes usage clockwise from 12 o'clock");
@@ -95,7 +100,16 @@ namespace CodexWeeklyTray.Tests
                 }
             }
 
-            using (Icon icon = TrayIconRenderer.RenderUnavailable())
+            using (Icon icon = TrayIconRenderer.RenderFiveHour(windows.FiveHour))
+            using (Bitmap bitmap = icon.ToBitmap())
+            {
+                Color fiveHourBorder = bitmap.GetPixel(32, 6);
+                AssertTrue(
+                    fiveHourBorder.R > weeklyBorder.R + 50,
+                    "uses a purple 5-hour outline");
+            }
+
+            using (Icon icon = TrayIconRenderer.RenderWeeklyUnavailable())
             {
                 AssertEqual(64, icon.Height, "creates an unavailable icon");
             }

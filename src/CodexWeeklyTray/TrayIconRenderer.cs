@@ -8,18 +8,43 @@ namespace CodexWeeklyTray
     internal static class TrayIconRenderer
     {
         private const int CanvasSize = 64;
+        private static readonly Color WeeklyOutlineColor = Color.FromArgb(66, 135, 245);
+        private static readonly Color FiveHourOutlineColor = Color.FromArgb(176, 92, 255);
 
-        public static Icon Render(UsageSnapshot snapshot)
+        public static Icon RenderWeekly(UsageSnapshot snapshot)
+        {
+            return Render(snapshot, WeeklyOutlineColor);
+        }
+
+        public static Icon RenderFiveHour(UsageSnapshot snapshot)
+        {
+            return Render(snapshot, FiveHourOutlineColor);
+        }
+
+        public static Icon RenderWeeklyUnavailable()
+        {
+            return RenderUnavailable(WeeklyOutlineColor);
+        }
+
+        public static Icon RenderFiveHourUnavailable()
+        {
+            return RenderUnavailable(FiveHourOutlineColor);
+        }
+
+        private static Icon Render(UsageSnapshot snapshot, Color outlineColor)
         {
             if (snapshot == null)
             {
-                return RenderUnavailable();
+                return RenderUnavailable(outlineColor);
             }
 
-            return RenderPie(snapshot.RemainingPercent, GetAccentColor(snapshot.RemainingPercent));
+            return RenderPie(
+                snapshot.RemainingPercent,
+                GetAccentColor(snapshot.RemainingPercent),
+                outlineColor);
         }
 
-        public static Icon RenderUnavailable()
+        private static Icon RenderUnavailable(Color outlineColor)
         {
             using (Bitmap bitmap = CreateBitmap())
             using (Graphics graphics = Graphics.FromImage(bitmap))
@@ -34,11 +59,12 @@ namespace CodexWeeklyTray
                     graphics.FillEllipse(brush, bounds);
                     graphics.DrawLine(slash, 20.0f, 44.0f, 44.0f, 20.0f);
                 }
+                DrawOutline(graphics, bounds, outlineColor);
                 return CreateIcon(bitmap);
             }
         }
 
-        private static Icon RenderPie(double remainingPercent, Color accent)
+        private static Icon RenderPie(double remainingPercent, Color accent, Color outlineColor)
         {
             using (Bitmap bitmap = CreateBitmap())
             using (Graphics graphics = Graphics.FromImage(bitmap))
@@ -71,12 +97,18 @@ namespace CodexWeeklyTray
                     }
                 }
 
-                using (Pen outline = new Pen(Color.FromArgb(210, 230, 230, 230), 1.5f))
-                {
-                    graphics.DrawEllipse(outline, bounds);
-                }
+                DrawOutline(graphics, bounds, outlineColor);
 
                 return CreateIcon(bitmap);
+            }
+        }
+
+        private static void DrawOutline(Graphics graphics, RectangleF bounds, Color outlineColor)
+        {
+            using (Pen outline = new Pen(outlineColor, 5.0f))
+            {
+                outline.Alignment = PenAlignment.Inset;
+                graphics.DrawEllipse(outline, bounds);
             }
         }
 

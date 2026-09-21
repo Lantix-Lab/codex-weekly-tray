@@ -11,6 +11,9 @@ This is an unofficial community project. It is not affiliated with, endorsed by,
 - Each available limit window has its own tray icon in the same application.
 - The weekly window uses one icon. A second icon appears when a 5-hour window is returned.
 - Seeing only one icon is expected when the account returns only one supported window.
+- A blue outer ring identifies the weekly icon.
+- A purple outer ring identifies the 5-hour icon.
+- Windows controls tray icon order, so left-to-right position is not used for identification.
 - The colored area is the remaining percentage.
 - Usage removes the colored area clockwise, starting at 12 o'clock.
 - More than 50 percent remaining is green.
@@ -20,7 +23,7 @@ This is an unofficial community project. It is not affiliated with, endorsed by,
 - An unavailable state is shown as a gray circle with a diagonal line.
 - The icon contains no text or digits.
 
-Each icon's tooltip identifies its window and shows the exact percentage and reset time. Both icons share one menu, refresh timer, App Server connection, and application process. A refresh makes one `account/rateLimits/read` request and updates every returned window; displaying two icons does not double the request rate.
+The inner sector color shows the remaining level; the outer ring color identifies the window type. Each icon's tooltip also identifies its window and shows the exact percentage and reset time. Both icons share one menu, refresh timer, App Server connection, and application process. A refresh makes one `account/rateLimits/read` request and updates every returned window; displaying two icons does not double the request rate.
 
 ## Supported windows
 

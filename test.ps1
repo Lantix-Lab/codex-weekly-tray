@@ -33,6 +33,7 @@ $testSources = @(
     (Join-Path $sourceRoot 'UsageSnapshot.cs'),
     (Join-Path $sourceRoot 'UsageWindowSet.cs'),
     (Join-Path $sourceRoot 'UsageParser.cs'),
+    (Join-Path $sourceRoot 'RefreshPolicy.cs'),
     (Join-Path $sourceRoot 'TrayIconRenderer.cs'),
     (Join-Path $sourceRoot 'CodexLocator.cs'),
     (Join-Path $sourceRoot 'CodexAppServerClient.cs')

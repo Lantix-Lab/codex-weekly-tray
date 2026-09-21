@@ -15,11 +15,18 @@ namespace CodexWeeklyTray
         private readonly ToolStripMenuItem weeklyStatusItem;
         private readonly ToolStripMenuItem fiveHourStatusItem;
         private readonly ToolStripMenuItem refreshItem;
+        private readonly ToolStripMenuItem refreshIntervalItem;
+        private readonly ToolStripMenuItem[] refreshIntervalOptions;
         private readonly ToolStripMenuItem startupItem;
         private readonly Timer refreshTimer;
         private readonly CodexAppServerClient client;
         private Icon weeklyCurrentIcon;
         private Icon fiveHourCurrentIcon;
+        private string weeklyLastStatus;
+        private string fiveHourLastStatus;
+        private int refreshIntervalMinutes;
+        private int consecutiveRefreshFailures;
+        private bool hasSuccessfulRefresh;
         private bool refreshing;
         private bool disposed;
 
@@ -36,6 +43,18 @@ namespace CodexWeeklyTray
             };
             refreshItem = new ToolStripMenuItem("Refresh now");
             refreshItem.Click += delegate { BeginRefresh(); };
+
+            refreshIntervalMinutes = SafeGetRefreshInterval();
+            refreshIntervalItem = new ToolStripMenuItem("Refresh interval");
+            int[] intervals = RefreshPolicy.GetSupportedIntervals();
+            refreshIntervalOptions = new ToolStripMenuItem[intervals.Length];
+            int intervalIndex;
+            for (intervalIndex = 0; intervalIndex < intervals.Length; intervalIndex++)
+            {
+                ToolStripMenuItem option = CreateRefreshIntervalOption(intervals[intervalIndex]);
+                refreshIntervalOptions[intervalIndex] = option;
+                refreshIntervalItem.DropDownItems.Add(option);
+            }
 
             ToolStripMenuItem usagePageItem = new ToolStripMenuItem("Open Codex usage page");
             usagePageItem.Click += delegate { OpenUsagePage(); };
@@ -55,6 +74,7 @@ namespace CodexWeeklyTray
             menu.Items.Add(fiveHourStatusItem);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(refreshItem);
+            menu.Items.Add(refreshIntervalItem);
             menu.Items.Add(usagePageItem);
             menu.Items.Add(startupItem);
             menu.Items.Add(new ToolStripSeparator());
@@ -81,7 +101,7 @@ namespace CodexWeeklyTray
             refreshTimer.Tick += delegate
             {
                 refreshTimer.Stop();
-                refreshTimer.Interval = 60000;
+                refreshTimer.Interval = GetRefreshIntervalMilliseconds();
                 BeginRefresh();
                 refreshTimer.Start();
             };
@@ -100,12 +120,26 @@ namespace CodexWeeklyTray
             try
             {
                 UsageWindowSet windowSet = await client.FetchUsageAsync();
+                consecutiveRefreshFailures = 0;
+                hasSuccessfulRefresh = true;
                 UpdateFromWindows(windowSet);
             }
             catch (Exception exception)
             {
-                AppLog.Write("Refresh failed: " + exception);
-                UpdateUnavailable(exception.Message);
+                consecutiveRefreshFailures = Math.Min(
+                    consecutiveRefreshFailures + 1,
+                    RefreshPolicy.MaxConsecutiveFailures);
+                AppLog.Write(
+                    "Refresh failed (" + consecutiveRefreshFailures + "/" +
+                    RefreshPolicy.MaxConsecutiveFailures + "): " + exception);
+                if (RefreshPolicy.ShouldShowUnavailable(hasSuccessfulRefresh, consecutiveRefreshFailures))
+                {
+                    UpdateUnavailable(exception.Message);
+                }
+                else
+                {
+                    UpdateStale();
+                }
             }
             finally
             {
@@ -123,6 +157,7 @@ namespace CodexWeeklyTray
                 "Codex weekly remaining: ",
                 false,
                 ref weeklyCurrentIcon);
+            weeklyLastStatus = windowSet.Weekly == null ? null : weeklyStatusItem.Text;
             UpdateWindow(
                 windowSet.FiveHour,
                 fiveHourNotifyIcon,
@@ -130,6 +165,27 @@ namespace CodexWeeklyTray
                 "Codex 5-hour remaining: ",
                 true,
                 ref fiveHourCurrentIcon);
+            fiveHourLastStatus = windowSet.FiveHour == null ? null : fiveHourStatusItem.Text;
+        }
+
+        private void UpdateStale()
+        {
+            MarkWindowStale(weeklyNotifyIcon, weeklyStatusItem, weeklyLastStatus);
+            MarkWindowStale(fiveHourNotifyIcon, fiveHourStatusItem, fiveHourLastStatus);
+        }
+
+        private void MarkWindowStale(NotifyIcon notifyIcon, ToolStripMenuItem statusItem, string lastStatus)
+        {
+            if (!notifyIcon.Visible || String.IsNullOrWhiteSpace(lastStatus))
+            {
+                return;
+            }
+
+            statusItem.Text = lastStatus + " (stale)";
+            SetTooltip(
+                notifyIcon,
+                lastStatus + " | Stale " + consecutiveRefreshFailures + "/" +
+                RefreshPolicy.MaxConsecutiveFailures);
         }
 
         private static void UpdateWindow(
@@ -207,6 +263,66 @@ namespace CodexWeeklyTray
                 text = text.Substring(0, 60) + "...";
             }
             notifyIcon.Text = text;
+        }
+
+        private ToolStripMenuItem CreateRefreshIntervalOption(int minutes)
+        {
+            string label = minutes == 1 ? "1 minute" : minutes + " minutes";
+            ToolStripMenuItem option = new ToolStripMenuItem(label)
+            {
+                Tag = minutes,
+                Checked = minutes == refreshIntervalMinutes,
+                CheckOnClick = false
+            };
+            option.Click += delegate { SetRefreshInterval(minutes); };
+            return option;
+        }
+
+        private int SafeGetRefreshInterval()
+        {
+            try
+            {
+                return RefreshSettings.LoadIntervalMinutes();
+            }
+            catch (Exception exception)
+            {
+                AppLog.Write("Read refresh interval failed: " + exception);
+                return RefreshPolicy.DefaultIntervalMinutes;
+            }
+        }
+
+        private void SetRefreshInterval(int minutes)
+        {
+            try
+            {
+                RefreshSettings.SaveIntervalMinutes(minutes);
+                refreshIntervalMinutes = minutes;
+                int index;
+                for (index = 0; index < refreshIntervalOptions.Length; index++)
+                {
+                    refreshIntervalOptions[index].Checked =
+                        Convert.ToInt32(refreshIntervalOptions[index].Tag) == minutes;
+                }
+
+                refreshTimer.Stop();
+                refreshTimer.Interval = GetRefreshIntervalMilliseconds();
+                refreshTimer.Start();
+                BeginRefresh();
+            }
+            catch (Exception exception)
+            {
+                AppLog.Write("Update refresh interval failed: " + exception);
+                MessageBox.Show(
+                    "Unable to update the refresh interval: " + exception.Message,
+                    "Codex Weekly Tray",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+        private int GetRefreshIntervalMilliseconds()
+        {
+            return refreshIntervalMinutes * 60 * 1000;
         }
 
         private static void OpenUsagePage()

@@ -49,7 +49,7 @@ See the [OpenAI Codex App Server documentation](https://learn.chatgpt.com/docs/a
 
 Running this tray application does not consume model-inference tokens or reduce either Codex usage allowance. It only calls `account/rateLimits/read` to retrieve account metadata. It never starts a Codex thread or model turn and does not call `thread/start` or `turn/start`.
 
-The 60-second refresh interval produces only small account-status requests and negligible local CPU, memory, and network activity. The Codex App Server may also perform its own lightweight metadata refreshes, but the tray application does not request model inference.
+The selectable refresh interval produces only small account-status requests and negligible local CPU, memory, and network activity. The Codex App Server may also perform its own lightweight metadata refreshes, but the tray application does not request model inference.
 
 ## Encoding policy
 
@@ -114,11 +114,16 @@ Verify the encoding policy directly:
 ## Tray menu
 
 - **Refresh now** reloads the usage allowance.
+- **Refresh interval** selects 1, 5, 15, or 30 minutes. The default is 1 minute, and the selection is saved for the current Windows user.
 - **Open Codex usage page** opens the usage page in the default browser.
 - **Start with Windows** adds or removes a shortcut in the current user's Windows Startup folder. It is disabled by default.
 - **Exit** closes the application and its App Server child process.
 
-The application refreshes every 60 seconds. Double-clicking either icon also refreshes both icons.
+Double-clicking either icon refreshes both icons immediately. Changing the interval also performs an immediate refresh and schedules later refreshes at the selected interval.
+
+The selected interval is stored as the `RefreshIntervalMinutes` value under `HKCU\Software\CodexWeeklyTray`. No account credentials or usage history are stored there.
+
+After at least one successful read, the first two consecutive refresh failures keep the last known chart and mark its menu text and tooltip as `stale`. A third consecutive failure changes the chart to the unavailable state. Any successful refresh clears the failure count immediately. If the application has never read a valid value, the first failure remains unavailable because there is no previous result to display.
 
 The startup shortcut is stored as `CodexWeeklyTray.lnk` in the folder opened by `shell:startup`. Versions that used the current-user `Run` registry key are migrated automatically: the shortcut is created and verified before the legacy registry value is removed.
 

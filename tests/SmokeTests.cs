@@ -73,6 +73,19 @@ namespace CodexWeeklyTray.Tests
             AssertTrue(fiveHourOnlyWindows.Weekly == null, "does not invent a weekly window");
             AssertEqual(35.0, fiveHourOnlyWindows.FiveHour.RemainingPercent, "calculates 5-hour-only remaining percent");
 
+            AssertTrue(RefreshPolicy.IsSupportedInterval(1), "supports a 1-minute refresh interval");
+            AssertTrue(RefreshPolicy.IsSupportedInterval(30), "supports a 30-minute refresh interval");
+            AssertTrue(!RefreshPolicy.IsSupportedInterval(2), "rejects an unsupported refresh interval");
+            AssertTrue(
+                !RefreshPolicy.ShouldShowUnavailable(true, 2),
+                "keeps the last result for two failures");
+            AssertTrue(
+                RefreshPolicy.ShouldShowUnavailable(true, 3),
+                "shows unavailable after three failures");
+            AssertTrue(
+                RefreshPolicy.ShouldShowUnavailable(false, 1),
+                "shows unavailable when no successful result exists");
+
             UsageSnapshot full = new UsageSnapshot(0.0, 10080, 0);
             AssertEqual(100.0, full.RemainingPercent, "keeps the true 100 percent value");
 

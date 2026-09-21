@@ -27,6 +27,19 @@ namespace CodexWeeklyTray
                     AppLog.Write("Unhandled exception: " + args.ExceptionObject);
                 };
 
+                AppLog.Write("Application started: " + Application.ExecutablePath);
+                try
+                {
+                    if (StartupManager.MigrateLegacyRegistration())
+                    {
+                        AppLog.Write("Migrated the legacy Run startup entry to the current-user Startup folder.");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    AppLog.Write("Startup registration migration failed: " + exception);
+                }
+
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
 

@@ -115,10 +115,12 @@ Windows 会在程序运行时锁定可执行文件，因此重新构建前应通
 
 - **Refresh now**：立即重新读取使用额度。
 - **Open Codex usage page**：在默认浏览器中打开用量页面。
-- **Start with Windows**：添加或移除当前用户的开机启动项，默认关闭。
+- **Start with Windows**：在当前用户的 Windows Startup 文件夹中添加或移除快捷方式，默认关闭。
 - **Exit**：关闭程序及其 App Server 子进程。
 
 程序每 60 秒自动刷新一次。双击任一托盘图标都会立即刷新两个图标。
+
+启动快捷方式以 `CodexWeeklyTray.lnk` 的名称保存在 `shell:startup` 打开的文件夹中。使用当前用户 `Run` 注册表项的旧版本会自动迁移：程序会先创建并验证快捷方式，成功后才删除旧注册表值。
 
 ## 项目结构
 

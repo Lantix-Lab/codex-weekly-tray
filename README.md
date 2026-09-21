@@ -115,10 +115,12 @@ Verify the encoding policy directly:
 
 - **Refresh now** reloads the usage allowance.
 - **Open Codex usage page** opens the usage page in the default browser.
-- **Start with Windows** adds or removes the current-user startup entry. It is disabled by default.
+- **Start with Windows** adds or removes a shortcut in the current user's Windows Startup folder. It is disabled by default.
 - **Exit** closes the application and its App Server child process.
 
 The application refreshes every 60 seconds. Double-clicking either icon also refreshes both icons.
+
+The startup shortcut is stored as `CodexWeeklyTray.lnk` in the folder opened by `shell:startup`. Versions that used the current-user `Run` registry key are migrated automatically: the shortcut is created and verified before the legacy registry value is removed.
 
 ## Project layout
 
